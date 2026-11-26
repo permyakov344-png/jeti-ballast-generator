@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JETI Ballast Generator — таблицы балласта для DC-24</title>
+<meta name="description" content="Генератор Lua-таблиц балласта для передатчиков Jeti DC-24 / DS-24 из Excel-файла. Работает в браузере, без установки.">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --panel: #111418;
+    --panel2: #161b22;
+    --border: #1e2530;
+    --accent: #00c8ff;
+    --accent2: #ff7a00;
+    --green: #39d353;
+    --text: #c8d4e0;
+    --dim: #8b98a8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    line-height: 1.65;
+    padding: 0 0 4rem;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 1.25rem; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 2.5rem 0 2rem;
+    margin-bottom: 2.5rem;
+    background: radial-gradient(circle at 20% 0%, #0d2230 0%, var(--bg) 62%);
+  }
+  h1 {
+    font-size: 2.1rem; font-weight: 700; letter-spacing: 1px;
+    color: #fff; line-height: 1.2;
+  }
+  h1 em { color: var(--accent); font-style: normal; }
+  .lead { color: var(--dim); margin-top: .8rem; font-size: 1.05rem; max-width: 44rem; }
+
+  h2 {
+    font-size: 1.45rem; color: #fff; margin: 3rem 0 1rem;
+    padding-bottom: .5rem; border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.1rem; color: var(--accent); margin: 1.8rem 0 .6rem; }
+  p { margin: .7rem 0; }
+  a { color: var(--accent); }
+  ul, ol { margin: .7rem 0 .7rem 1.4rem; }
+  li { margin: .35rem 0; }
+  code {
+    font-family: Consolas, 'Courier New', monospace;
+    background: #0d1218; border: 1px solid var(--border);
+    border-radius: 4px; padding: .1rem .35rem; font-size: .9em; color: #9fe8ff;
+  }
+  b, strong { color: #fff; }
+
+  .buttons { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.6rem; }
+  .btn {
+    display: inline-block; padding: .75rem 1.4rem; border-radius: 6px;
+    text-decoration: none; font-weight: 600; font-size: 1rem;
+    border: 1px solid var(--accent); color: var(--accent);
+    background: linear-gradient(135deg, #003a5c, #004a70);
+    transition: all .15s;
+  }
+  .btn:hover { box-shadow: 0 0 14px rgba(0,200,255,.35); transform: translateY(-1px); }
+  .btn.green {
+    background: linear-gradient(135deg, #0d3b16, #14591f);
+    border-color: var(--green); color: var(--green);
+  }
+  .btn.green:hover { box-shadow: 0 0 14px rgba(57,211,83,.35); }
+  .btn.ghost {
+    background: transparent; border-color: var(--border); color: var(--text);
+  }
+  .btn.ghost:hover { border-color: var(--accent); box-shadow: none; }
+
+  figure { margin: 1.4rem 0; }
+  figure img {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+  }
+  figcaption { color: var(--dim); font-size: .88rem; margin-top: .5rem; }
+
+  .steps { counter-reset: step; list-style: none; margin-left: 0; }
+  .steps > li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 3rem;
+    margin: 1.4rem 0;
+  }
+  .steps > li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: .1rem;
+    width: 2rem; height: 2rem; border-radius: 50%;
+    background: #0d2230; border: 1px solid var(--accent);
+    color: var(--accent); font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .cards {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem; margin: 1.4rem 0;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.1rem 1.2rem;
+  }
+  .card h3 { margin-top: 0; }
+  .card p { color: var(--dim); font-size: .94rem; margin: .4rem 0 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; font-size: .95rem; }
+  th, td { border: 1px solid var(--border); padding: .55rem .7rem; text-align: left; }
+  th { background: var(--panel2); color: #fff; }
+  td code { font-size: .85em; }
+
+  .note {
+    border-left: 3px solid var(--accent2);
+    background: #1a1205; padding: .9rem 1.1rem; border-radius: 0 6px 6px 0;
+    margin: 1.2rem 0;
+  }
+  .note.ok { border-left-color: var(--green); background: #06170a; }
+  .note b { color: var(--accent2); }
+  .note.ok b { color: var(--green); }
+
+  footer {
+    margin-top: 3.5rem; padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--dim); font-size: .9rem;
+  }
+  @media (max-width: 600px) {
+    h1 { font-size: 1.55rem; }
+    body { font-size: .96rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>JETI <em>Ballast Generator</em><br>таблицы балласта для DC-24</h1>
+    <p class="lead">
+      Берёт Excel-таблицу с вариантами загрузки и делает готовое Lua-приложение
+      для передатчика Jeti DC-24 / DS-24. Ничего устанавливать не нужно —
+      генератор работает в браузере.
+    </p>
+    <div class="buttons">
+      <a class="btn" href="generator/jeti_lua_generator.html">▶ Открыть генератор</a>
+      <a class="btn green" href="downloads/jeti-ballast-generator.zip" download>⬇ Скачать всё (zip)</a>
+      <a class="btn ghost" href="https://github.com/permyakov344-png/jeti-ballast-generator">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h2>Что это даёт</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Таблица на экране</h3>
+      <p>№ / НОС / КРЫЛО / CG / ВЕС — по два варианта на страницу, листание кнопками UP / DOWN.</p>
+    </div>
+    <div class="card">
+      <h3>Из Excel — в .lua</h3>
+      <p>Заполнил таблицу, перетащил файл в генератор, получил скрипт. Без правки кода руками.</p>
+    </div>
+    <div class="card">
+      <h3>Под кириллицу не падает</h3>
+      <p>Передатчик не умеет отображать русские буквы — значения автоматически переводятся в латиницу.</p>
+    </div>
+  </div>
+
+  <figure>
+    <img src="docs/img/screen-pikef3f.png" alt="Экран передатчика Jeti DC-24 с таблицей балласта">
+    <figcaption>Так выглядит скрипт на экране 320×240: шапка с моделью и снарядами, две строки вариантов, номер страницы.</figcaption>
+  </figure>
+
+  <h2>Как пользоваться</h2>
+
+  <ol class="steps">
+    <li>
+      <b>Скачай шаблон.</b><br>
+      <a href="templates/ballast_template.xlsx" download>ballast_template.xlsx</a> — пустая форма
+      с листом «Инструкция» и двумя примерами. Внутри жёлтым подсвечено то, что нужно заполнять.
+    </li>
+    <li>
+      <b>Заполни таблицу.</b><br>
+      Один лист — одна модель. Строка 1: название модели и подписи снарядов.
+      Строка 2: шапка <code>№ | НОС | КРЫЛО | CG | ВЕС</code>.
+      Дальше — по две строки на вариант: сверху НОС верх, снизу НОС низ.
+      <figure>
+        <img src="docs/img/03-fill-scheme.png" alt="Схема заполнения таблицы: жёлтые ячейки, шапка, два блока">
+        <figcaption>Жёлтое — вписывать самому. Белое — шапка и подписи, их не трогают.</figcaption>
+      </figure>
+    </li>
+    <li>
+      <b>Открой генератор и перетащи файл.</b><br>
+      <a href="generator/jeti_lua_generator.html">Открыть генератор</a> → перетащить
+      <code>.xls</code> или <code>.xlsx</code> в пунктирную рамку.
+      <figure>
+        <img src="docs/img/01-generator.png" alt="Генератор: загруженная таблица, три карточки моделей">
+        <figcaption>Появляются карточки: имя листа, число вариантов, предпросмотр строк.</figcaption>
+      </figure>
+    </li>
+    <li>
+      <b>Нажми кнопку с именем файла.</b><br>
+      Скачается <code>PIKEF3F.lua</code>. Имя можно поправить в поле перед кнопкой —
+      нужно не больше 8 символов латиницей: <code>PIKEF3F</code>, <code>PIKEX</code>, <code>DEVICE26</code>.
+      Кнопка «Скачать все» отдаёт сразу все модели.
+      <figure>
+        <img src="docs/img/02-result.png" alt="Готовый код и кнопка скачивания .lua">
+        <figcaption>Внизу виден готовый код — можно сразу посмотреть, что попадёт в скрипт.</figcaption>
+      </figure>
+    </li>
+    <li>
+      <b>Скопируй .lua на SD-карту.</b><br>
+      Папка <code>/Apps/</code> на карте передатчика. Затем на передатчике:
+      <b>Menu → Applications</b> → выбрать скрипт. <b>UP / DOWN</b> — страницы, <b>ESC</b> — выход.
+    </li>
+  </ol>
+
+  <div class="note ok">
+    <b>Готовые файлы уже есть.</b> Если таблица стандартная (PIKE F3F, PIKE X, DEVICE 2026),
+    можно ничего не генерировать и просто взять
+    <a href="output/PIKEF3F.lua">PIKEF3F.lua</a>,
+    <a href="output/PIKEX.lua">PIKEX.lua</a>,
+    <a href="output/DEVICE26.lua">DEVICE26.lua</a>.
+  </div>
+
+  <h2>Формат таблицы</h2>
+
+  <table>
+    <tr><th>Где</th><th>Что там</th></tr>
+    <tr><td><code>B1</code></td><td>Название модели — попадёт в шапку экрана и в имя файла</td></tr>
+    <tr><td><code>F1</code> и правее</td><td>Подписи снарядов: <code>45г/98</code>, <code>30г/100</code></td></tr>
+    <tr><td>Строка 2</td><td>Шапка: <code>№ | НОС | КРЫЛО | CG | ВЕС</code>, слева (A..E) и справа (F..J)</td></tr>
+    <tr><td>Строка 3 и далее</td><td>Две строки на вариант: верхняя — замер, нижняя — второй нос/CG</td></tr>
+  </table>
+
+  <p>Один лист вмещает два варианта в ряд: левый блок с колонки A, правый — с колонки F.
+  Листы без колонки <code>№</code> (например «Расчет») генератор пропускает.</p>
+
+  <div class="note">
+    <b>Важно:</b> кириллицу в значения не пишите — передатчик её не покажет.
+    Знакомые слова сокращаются сами: <code>красный → KRASN</code>, <code>черный → CHERN</code>,
+    подписи вида <code>45г/98 → 45/98</code>.
+  </div>
+
+  <h2>Варианты запуска</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Онлайн</h3>
+      <p><a href="generator/jeti_lua_generator.html">Открыть генератор</a> в браузере.
+      Нужен интернет только для шрифтов, всё остальное локальное.</p>
+    </div>
+    <div class="card">
+      <h3>Офлайн, один файл</h3>
+      <p>Скачай <a href="generator/jeti_lua_generator.html" download>jeti_lua_generator.html</a>
+      и открой двойным щелчком. Библиотека Excel подтянется с CDN, если нет — положи рядом
+      <code>xlsx.full.min.js</code> из архива.</p>
+    </div>
+    <div class="card">
+      <h3>Командная строка</h3>
+      <p><code>python tools/generate.py таблица.xls output</code> — тот же результат без браузера.
+      Нужны Python и <code>xlrd</code>.</p>
+    </div>
+  </div>
+
+  <h2>Если что-то не так</h2>
+
+  <table>
+    <tr><th>Симптом</th><th>Причина и что делать</th></tr>
+    <tr>
+      <td>На экране пусто вместо названия</td>
+      <td>В названии модели кириллица. Пиши латиницей: <code>PIKE X 2025</code>.</td>
+    </tr>
+    <tr>
+      <td>Строка не попала в таблицу</td>
+      <td>Пустая колонка <code>№</code> — по ней генератор находит вариант.</td>
+    </tr>
+    <tr>
+      <td>Скрипт не появился в Applications</td>
+      <td>Файл должен лежать в <code>/Apps/</code> на SD-карте, имя — до 8 символов, расширение <code>.lua</code>.</td>
+    </tr>
+    <tr>
+      <td>Ошибка <code>attempt to call nil</code></td>
+      <td>Скрипт собран для другого API. Перегенерируй этим генератором — он использует только существующие функции Jeti.</td>
+    </tr>
+  </table>
+
+  <footer>
+    Проверено на Jeti DC-24. Сделано для F3F-балласта, но подойдёт любая таблица
+    «вариант → вес → CG». Лицензия MIT.
+    <br>
+    <a href="https://github.com/permyakov344-png/jeti-ballast-generator">Исходники и инструкция на GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeti Lua Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --panel: #111418;
+    --border: #1e2530;
+    --accent: #00c8ff;
+    --accent2: #ff7a00;
+    --green: #39d353;
+    --red: #ff4444;
+    --text: #c8d4e0;
+    --dim: #4a5568;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  .scanline {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,200,255,0.012) 2px, rgba(0,200,255,0.012) 4px);
+    pointer-events: none; z-index: 1000;
+  }
+
+  h1 {
+    font-size: 2rem; font-weight: 700; letter-spacing: 3px;
+    color: var(--accent); text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1rem; margin-bottom: 2rem;
+  }
+  h1 span { color: var(--accent2); }
+
+  .subtitle { font-size: 0.9rem; color: var(--dim); letter-spacing: 1px; margin-top: 0.3rem; font-family: 'Share Tech Mono'; }
+
+  /* DROP ZONE */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--panel);
+    margin-bottom: 2rem;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: #111c25; }
+  .drop-zone .icon { font-size: 3rem; margin-bottom: 1rem; }
+  .drop-zone .label { font-size: 1.2rem; font-weight: 600; color: var(--accent); letter-spacing: 2px; }
+  .drop-zone .sub { font-size: 0.85rem; color: var(--dim); margin-top: 0.5rem; font-family: 'Share Tech Mono'; }
+  #fileInput { display: none; }
+
+  /* SHEETS */
+  .sheets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .sheet-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .sheet-header {
+    background: #161b22;
+    padding: 0.8rem 1.2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-name { font-weight: 700; font-size: 1rem; letter-spacing: 1px; color: var(--accent); }
+  .sheet-badge {
+    font-size: 0.7rem; font-family: 'Share Tech Mono';
+    padding: 2px 8px; border-radius: 3px;
+    background: #1a2535; color: var(--dim); border: 1px solid var(--border);
+  }
+  .sheet-badge.ok { background: #0d2010; color: var(--green); border-color: #1a4020; }
+  .sheet-badge.err { background: #2a0d0d; color: var(--red); border-color: #4a1a1a; }
+
+  .sheet-preview {
+    padding: 1rem 1.2rem;
+    font-family: 'Share Tech Mono';
+    font-size: 0.75rem;
+    color: var(--dim);
+    max-height: 160px;
+    overflow: hidden;
+  }
+  .preview-row { display: flex; gap: 0.5rem; margin-bottom: 3px; }
+  .preview-num { color: var(--accent2); width: 20px; flex-shrink: 0; }
+  .preview-nos { color: #ffd060; width: 50px; }
+  .preview-wing { color: #60ddff; width: 40px; }
+  .preview-cg { color: #80ff90; width: 40px; }
+  .preview-ves { color: #ff9966; }
+
+  .sheet-actions { padding: 1rem 1.2rem; border-top: 1px solid var(--border); }
+
+  .btn-gen {
+    width: 100%; padding: 0.7rem 1rem;
+    background: linear-gradient(135deg, #003a5c, #004a70);
+    border: 1px solid var(--accent);
+    border-radius: 5px; cursor: pointer;
+    font-family: 'Rajdhani'; font-size: 1rem; font-weight: 700;
+    color: var(--accent); letter-spacing: 2px; text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .btn-gen:hover { background: linear-gradient(135deg, #004a70, #005a88); box-shadow: 0 0 12px rgba(0,200,255,0.3); }
+  .btn-gen:active { transform: scale(0.98); }
+
+  /* DOWNLOAD PANEL */
+  .download-panel {
+    background: #0d2010;
+    border: 1px solid #1a4020;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+  .download-panel.show { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .dl-title { color: var(--green); font-weight: 700; font-size: 1rem; letter-spacing: 2px; margin-bottom: 1rem; }
+  .dl-btn {
+    display: inline-block; padding: 0.6rem 1.5rem;
+    background: var(--green); color: #000; border-radius: 4px;
+    font-family: 'Rajdhani'; font-weight: 700; font-size: 1rem;
+    cursor: pointer; text-decoration: none; letter-spacing: 1px;
+    transition: all 0.15s; margin-right: 0.5rem;
+  }
+  .dl-btn:hover { background: #4de66a; box-shadow: 0 0 10px rgba(57,211,83,0.4); }
+
+  .code-preview {
+    margin-top: 1rem;
+    background: #080a0c;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: 'Share Tech Mono';
+    font-size: 0.7rem;
+    color: #6a8a6a;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre;
+    line-height: 1.5;
+  }
+
+  /* STATUS */
+  .status {
+    font-family: 'Share Tech Mono'; font-size: 0.8rem;
+    padding: 0.5rem 1rem; border-radius: 4px; margin-bottom: 1rem;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.info { background: #0a1a2a; color: var(--accent); border: 1px solid #1a3a5a; }
+  .status.err { background: #2a0d0d; color: var(--red); border: 1px solid #5a1a1a; }
+
+  .all-btn {
+    padding: 0.8rem 2rem; margin-bottom: 2rem;
+    background: linear-gradient(135deg, #3a1500, #5a2500);
+    border: 1px solid var(--accent2);
+    border-radius: 5px; cursor: pointer;
+    font-family: 'Rajdhani'; font-size: 1.1rem; font-weight: 700;
+    color: var(--accent2); letter-spacing: 2px; text-transform: uppercase;
+    transition: all 0.15s; display: none;
+  }
+  .all-btn.show { display: inline-block; }
+  .all-btn:hover { box-shadow: 0 0 12px rgba(255,122,0,0.4); }
+
+  .hint {
+    font-family: 'Share Tech Mono'; font-size: 0.75rem;
+    color: var(--dim); margin-top: 2rem; padding-top: 1rem;
+    border-top: 1px solid var(--border); line-height: 1.8;
+  }
+  .hint b { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<div style="max-width:1100px;margin:0 auto;">
+  <h1>⚡ JETI LUA <span>GENERATOR</span>
+    <div class="subtitle">// DC-24 G2 · BALLAST TABLE · AUTO EXPORT</div>
+  </h1>
+
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📂</div>
+    <div class="label">Загрузи Excel файл</div>
+    <div class="sub">Перетащи .xls / .xlsx сюда или нажми для выбора</div>
+    <input type="file" id="fileInput" accept=".xls,.xlsx">
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <button class="all-btn" id="allBtn" onclick="generateAll()">⚡ СКАЧАТЬ ВСЕ .LUA ФАЙЛЫ</button>
+
+  <div class="sheets-grid" id="sheetsGrid"></div>
+
+  <div class="hint">
+    <b>Формат колонок в Excel:</b> № | НОС (строка1) | НОС (строка2) | КРЫЛО | CG (строка1) | CG (строка2) | ВЕС<br>
+    <b>Установка:</b> скопируй .lua файлы в папку /Apps/ на SD-карте DC-24 G2<br>
+    <b>Запуск:</b> Menu → Applications → F3(+) → выбери скрипт
+  </div>
+</div>
+
+<script>
+// ── LUA TEMPLATE ─────────────────────────────────────────────
+function generateLua(title, slugs, rtag, appName, fileName, rows) {
+  const dataLines = rows.map(r =>
+    `  {"${r[0]}","${r[1]}","${r[2]}","${r[3]}","${r[4]}","${r[5]}"}`
+  ).join(',\n');
+
+  const slugStr = slugs.map(s => `"${s}"`).join(',');
+
+  return `-- ${fileName}.lua
+-- ${title} Ballast Table
+-- Jeti DC-24 G2, API v1.5
+-- Generated by Jeti Lua Generator
+
+local data = {
+${dataLines},
+}
+local TITLE = "${title}"
+local SLUGS = {${slugStr}}
+local RTAG  = "${rtag}"
+
+local pages={}
+for i=1,#data,2 do pages[#pages+1]={i, data[i+1] and i+1 or nil} end
+local page=1; local PAGES=#pages
+
+local W,H=320,240; local HDR_H=18; local COLH_H=16; local ROW_H=98; local SUB_H=49
+local Cn={x=0,w=36}; local Cno={x=36,w=72}; local Cw={x=108,w=70}
+local Ccg={x=178,w=72}; local Cv={x=250,w=70}
+
+local function ct(col,y,h,s,fnt)
+  local tw=lcd.getTextWidth(fnt,s)
+  lcd.drawText(col.x+(col.w-tw)//2, y+(h-14)//2, s, fnt)
+end
+
+local function dv(y0,idx)
+  local v=data[idx]; local y1=y0+SUB_H
+  lcd.setColor(200,200,200); lcd.drawFilledRectangle(Cn.x, y0,Cn.w, ROW_H)
+  lcd.setColor(205,205,205); lcd.drawFilledRectangle(Cno.x,y0,Cno.w,ROW_H)
+  lcd.setColor(200,100,0);   lcd.drawFilledRectangle(Cw.x, y0,Cw.w, ROW_H)
+  lcd.setColor(205,205,205); lcd.drawFilledRectangle(Ccg.x,y0,Ccg.w,ROW_H)
+  lcd.setColor(80,170,0);    lcd.drawFilledRectangle(Cv.x, y0,Cv.w, ROW_H)
+  lcd.setColor(150,150,150)
+  lcd.drawFilledRectangle(Cno.x,y1-1,Cno.w,1); lcd.drawFilledRectangle(Ccg.x,y1-1,Ccg.w,1)
+  lcd.setColor(120,120,120)
+  lcd.drawFilledRectangle(Cno.x-1,y0,1,ROW_H); lcd.drawFilledRectangle(Cw.x-1,y0,1,ROW_H)
+  lcd.drawFilledRectangle(Ccg.x-1,y0,1,ROW_H); lcd.drawFilledRectangle(Cv.x-1,y0,1,ROW_H)
+  lcd.setColor(100,100,100); lcd.drawFilledRectangle(0,y0+ROW_H-1,W,1)
+  lcd.setColor(10,10,10)
+  ct(Cn,y0,ROW_H,tostring(idx),FONT_BIG)
+  ct(Cno,y0,SUB_H,v[1],FONT_BIG); ct(Cno,y1,SUB_H,v[2],FONT_BIG)
+  ct(Cw,y0,ROW_H,v[3],FONT_BIG)
+  ct(Ccg,y0,SUB_H,v[4],FONT_BIG); ct(Ccg,y1,SUB_H,v[5],FONT_BIG)
+  ct(Cv,y0,ROW_H,v[6],FONT_BIG)
+end
+
+local function draw()
+  lcd.setColor(30,30,30); lcd.drawFilledRectangle(0,0,W,H)
+  lcd.setColor(90,90,90); lcd.drawFilledRectangle(0,0,W,HDR_H)
+  local x=3
+  lcd.setColor(0,220,255); lcd.drawText(x,3,TITLE,FONT_MINI)
+  x=x+lcd.getTextWidth(FONT_MINI,TITLE)+4
+  lcd.setColor(255,238,136)
+  for _,s in ipairs(SLUGS) do
+    lcd.drawText(x,3,s,FONT_MINI); x=x+lcd.getTextWidth(FONT_MINI,s)+4
+  end
+  lcd.setColor(255,100,30)
+  lcd.drawText(W-lcd.getTextWidth(FONT_MINI,RTAG)-3,3,RTAG,FONT_MINI)
+  local y=HDR_H
+  lcd.setColor(210,210,210); lcd.drawFilledRectangle(0,y,W,COLH_H)
+  local function chdr(col,s,r,g,b)
+    lcd.setColor(r,g,b)
+    lcd.drawText(col.x+(col.w-lcd.getTextWidth(FONT_MINI,s))//2,y+3,s,FONT_MINI)
+  end
+  chdr(Cn,"No",20,20,20); chdr(Cno,"NOS",20,20,20); chdr(Cw,"KRYLO",20,20,20)
+  chdr(Ccg,"CG",200,0,0); chdr(Cv,"VES",20,20,20)
+  lcd.setColor(120,120,120); lcd.drawFilledRectangle(0,y+COLH_H-1,W,1)
+  local p=pages[page]; local yd=HDR_H+COLH_H
+  dv(yd,p[1]); if p[2] then dv(yd+ROW_H,p[2]) end
+  local foot="p."..page.."/"..PAGES
+  lcd.setColor(100,100,100)
+  lcd.drawText(W-lcd.getTextWidth(FONT_MINI,foot)-3,H-11,foot,FONT_MINI)
+end
+
+local function key(k)
+  if k==KEY_UP then page=page-1; if page<1 then page=PAGES end
+  elseif k==KEY_DOWN then page=page+1; if page>PAGES then page=1 end
+  elseif k==KEY_ESC then system.exitScript() end
+end
+
+local function init()
+  system.registerForm(1,MENU_APPS,"${appName}",nil,key,draw)
+end
+
+return {init=init,loop=function()end,author="Ballast",version="1.0",name="${appName}"}
+`;
+}
+
+// ── EXCEL PARSER ──────────────────────────────────────────────
+function parseSheet(ws) {
+  const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+
+  // Row 0: title + slugs
+  // Structure: col0=empty, col1=TITLE, col2-4=empty/base, col4=base_ves, col5..=slugs
+  const row0 = data[0] || [];
+  let title = '';
+  const slugs = [];
+  for (let c = 0; c < row0.length; c++) {
+    const v = row0[c];
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (!s) continue;
+    if (!title && c >= 1 && c <= 3) { title = s; continue; }
+    if (s) slugs.push(s);
+  }
+
+  // Detect block offsets: left block cols 0-4, right block cols 5-9
+  // Row 1 has headers: № НОС КРЫЛО CG ВЕС | № НОС КРЫЛО CG ВЕС
+  // Find right block start by scanning row1 for second "№"
+  const row1 = data[1] || [];
+  let rightOffset = -1;
+  for (let c = 3; c < row1.length; c++) {
+    const v = row1[c];
+    if (v != null && String(v).trim() === '№') { rightOffset = c; break; }
+  }
+  // fallback: right block starts at col 5
+  if (rightOffset < 0) rightOffset = 5;
+
+  // Parse a block: given row pair and column start
+  function parseBlock(r1, r2, col) {
+    const num = r1[col];
+    if (num == null || String(num).trim() === '') return null;
+    const nos1 = r1[col+1] != null ? String(r1[col+1]).trim() : '--';
+    const nos2 = r2[col+1] != null ? String(r2[col+1]).trim() : '--';
+    const wing = r1[col+2] != null ? String(r1[col+2]).trim() : '--';
+    const cg1  = r1[col+3] != null ? String(r1[col+3]).trim() : '--';
+    const cg2  = r2[col+3] != null ? String(r2[col+3]).trim() : '--';
+    const ves  = r1[col+4] != null ? String(r1[col+4]).trim() : '--';
+    return [nos1, nos2, wing, cg1, cg2, ves];
+  }
+
+  // Collect all variants, sorted by variant number
+  const varMap = {};
+  let i = 2;
+  while (i < data.length) {
+    const r1 = data[i] || [];
+    const r2 = data[i+1] || [];
+
+    // Left block (col 0)
+    const numL = r1[0];
+    if (numL != null && String(numL).trim() !== '' && !isNaN(Number(numL))) {
+      const row = parseBlock(r1, r2, 0);
+      if (row) varMap[Number(numL)] = row;
+    }
+
+    // Right block (rightOffset)
+    const numR = r1[rightOffset];
+    if (numR != null && String(numR).trim() !== '' && !isNaN(Number(numR))) {
+      const row = parseBlock(r1, r2, rightOffset);
+      if (row) varMap[Number(numR)] = row;
+    }
+
+    i += 2;
+  }
+
+  // Sort by variant number
+  const rows = Object.keys(varMap)
+    .map(Number).sort((a,b) => a-b)
+    .map(k => varMap[k]);
+
+  const rtag = "MED'";
+  return { title, slugs, rtag, rows };
+}
+
+function makeFileName(title) {
+  // 8.3 format for Jeti: max 8 chars
+  return title.replace(/[^A-Za-z0-9]/g,'').substring(0,8).toUpperCase();
+}
+
+// ── DOWNLOAD ─────────────────────────────────────────────────
+function downloadLua(content, filename) {
+  const blob = new Blob([content], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+// ── STATE ────────────────────────────────────────────────────
+let parsedSheets = [];
+
+function showStatus(msg, type='info') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = `status show ${type}`;
+}
+
+function renderSheets() {
+  const grid = document.getElementById('sheetsGrid');
+  grid.innerHTML = '';
+  parsedSheets.forEach((sh, idx) => {
+    const fn = makeFileName(sh.title);
+    const card = document.createElement('div');
+    card.className = 'sheet-card';
+
+    // preview rows
+    const previewRows = sh.rows.slice(0,5).map((r,i) => `
+      <div class="preview-row">
+        <span class="preview-num">${i+1}</span>
+        <span class="preview-nos">${r[0]}/${r[1]}</span>
+        <span class="preview-wing">${r[2]}</span>
+        <span class="preview-cg">${r[3]}/${r[4]}</span>
+        <span class="preview-ves">${r[5]}</span>
+      </div>`).join('');
+
+    const ok = sh.rows.length >= 1;
+    card.innerHTML = `
+      <div class="sheet-header">
+        <span class="sheet-name">${sh.title}</span>
+        <span class="sheet-badge ${ok?'ok':'err'}">${ok ? sh.rows.length+' вар.' : 'ошибка'}</span>
+      </div>
+      <div class="sheet-preview">
+        <div style="color:#4a5568;margin-bottom:4px;font-size:0.65rem">НОС1/НОС2 · КРЫЛО · CG1/CG2 · ВЕС</div>
+        ${previewRows}
+        ${sh.rows.length > 5 ? `<div style="color:#4a5568;margin-top:4px">... ещё ${sh.rows.length-5} вариантов</div>` : ''}
+      </div>
+      <div class="sheet-actions">
+        <button class="btn-gen" onclick="generateOne(${idx})">⬇ СКАЧАТЬ ${fn}.lua</button>
+        <div class="download-panel" id="dl-${idx}">
+          <div class="dl-title">✅ ГОТОВО — ${fn}.lua</div>
+          <a class="dl-btn" id="dlLink-${idx}">⬇ СКАЧАТЬ</a>
+          <div class="code-preview" id="codePreview-${idx}"></div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+  document.getElementById('allBtn').className = parsedSheets.length > 1 ? 'all-btn show' : 'all-btn';
+}
+
+function generateOne(idx) {
+  const sh = parsedSheets[idx];
+  const fn = makeFileName(sh.title);
+  const appName = sh.title.length > 14 ? sh.title.substring(0,14) : sh.title;
+  const lua = generateLua(sh.title, sh.slugs, sh.rtag, appName, fn, sh.rows);
+  downloadLua(lua, fn + '.lua');
+
+  // show panel
+  const panel = document.getElementById(`dl-${idx}`);
+  panel.className = 'download-panel show';
+  const link = document.getElementById(`dlLink-${idx}`);
+  const blob = new Blob([lua], {type:'text/plain'});
+  link.href = URL.createObjectURL(blob);
+  link.download = fn + '.lua';
+  document.getElementById(`codePreview-${idx}`).textContent = lua.substring(0, 600) + '\n... (полный файл скачан)';
+}
+
+function generateAll() {
+  parsedSheets.forEach((_,idx) => generateOne(idx));
+}
+
+// ── FILE LOAD ─────────────────────────────────────────────────
+function loadFile(file) {
+  showStatus(`⏳ Читаю ${file.name}...`, 'info');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      parsedSheets = [];
+      wb.SheetNames.forEach(name => {
+        // skip utility sheets
+        if (name.toLowerCase().includes('расчет') || name.toLowerCase().includes('расчёт')) return;
+        const ws = wb.Sheets[name];
+        const parsed = parseSheet(ws);
+        if (parsed.rows.length > 0) {
+          parsedSheets.push(parsed);
+        }
+      });
+      if (parsedSheets.length === 0) {
+        showStatus('❌ Не найдено листов с данными балласта', 'err');
+        return;
+      }
+      showStatus(`✅ Загружено ${parsedSheets.length} листов: ${parsedSheets.map(s=>s.title).join(', ')}`, 'info');
+      renderSheets();
+    } catch(err) {
+      showStatus('❌ Ошибка чтения файла: ' + err.message, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── EVENTS ───────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+</script>
+</body>
+</html>
