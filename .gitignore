@@ -14,3 +14,7 @@ __tmp_pdf/
 .idea/
 Thumbs.db
 desktop.ini
+
+# сторонние GPL-скрипты Ч локально, не в репозитории
+reference/elrsV3.lua
+reference/JetiTX3.lua
